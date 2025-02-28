@@ -2,6 +2,9 @@ import tkinter as tk
 from tkinter import filedialog, ttk, messagebox
 import pdfplumber
 import re
+import matplotlib.pyplot as plt
+from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
+from collections import Counter
 
 
 class Course:
@@ -18,7 +21,7 @@ class Course:
 class PDFParserApp:
     def __init__(self, root):
         self.root = root
-        self.root.title("PDF Kurs Parser")
+        self.root.title("WIAI Datasheet extractor and calculator")
         self.root.geometry("1650x1050")
 
         self.frame_left = tk.Frame(root)
@@ -38,7 +41,6 @@ class PDFParserApp:
         self.tree.pack(expand=True, fill="both", padx=10, pady=10)
 
         self.tree.column("Bereich", anchor="center", stretch=True)
-        self.tree.column("Kurs", anchor="center", stretch=True)
         self.tree.column("Note", anchor="center", stretch=True)
         self.tree.column("ECTS", anchor="center", stretch=True)
 
@@ -51,7 +53,10 @@ class PDFParserApp:
         self.prognose_label.pack(pady=10)
 
         self.prognose_text = tk.Text(self.frame_right, height=15, width=50, font=("Arial", 12))
-        self.prognose_text.pack(pady=10)
+        self.prognose_text.pack(padx=10, pady=10)
+
+        self.graph_frame = tk.Frame(self.frame_right)
+        self.graph_frame.pack(fill="both", expand=True, padx=10, pady=10)
 
     def load_pdf(self):
         file_path = filedialog.askopenfilename(filetypes=[("PDF files", "*.pdf")])
@@ -75,6 +80,7 @@ class PDFParserApp:
             self.ects_label.config(text=f"Gesamte ECTS-Summe: {ects_sum:.1f} | Durchschnitt: {avg_grade:.3f}")
 
             self.calculate_prognosis(ects_sum, avg_grade, ects_sum_calc)
+            self.plot_grade_distribution(data)
 
         except Exception as e:
             messagebox.showerror("Fehler", f"Fehler beim Verarbeiten der PDF:\n{e}")
@@ -135,6 +141,26 @@ class PDFParserApp:
 
         self.prognose_text.delete(1.0, tk.END)
         self.prognose_text.insert(tk.END, prognosis_text)
+
+    def plot_grade_distribution(self, data):
+        grades = [course.note for course in data]
+        grade_counts = Counter(grades)
+
+        sorted_grades = sorted(grade_counts.items(), key=lambda x: float(x[0].replace(',', '.')))
+        sorted_keys, sorted_values = zip(*sorted_grades)
+
+        fig, ax = plt.subplots()
+        ax.bar(sorted_keys, sorted_values)
+        ax.set_xlabel("Note")
+        ax.set_ylabel("Anzahl")
+        ax.set_title("Notenverteilung")
+
+        for widget in self.graph_frame.winfo_children():
+            widget.destroy()
+
+        canvas = FigureCanvasTkAgg(fig, master=self.graph_frame)
+        canvas.draw()
+        canvas.get_tk_widget().pack(fill="both", expand=True)
 
 
 if __name__ == "__main__":
